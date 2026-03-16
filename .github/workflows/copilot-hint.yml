@@ -18,12 +18,11 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // 自动发送 Copilot 审查请求
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
+            await github.rest.pulls.requestReviewers({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '@copilot review'
+              pull_number: context.payload.pull_request.number,
+              reviewers: ['copilot']
             });
             
             console.log('✅ Copilot review automatically requested');
