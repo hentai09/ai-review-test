@@ -18,21 +18,21 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const message = `## 👋 Welcome!
-
-Thank you for your contribution!
-
-💡 **AI Code Review:** You can ask GitHub Copilot to review this PR by commenting:
-\`\`\`
-@copilot review
-\`\`\`
-
-**Useful commands:**
-- \`@copilot review\` - Get a comprehensive code review
-- \`@copilot explain this code\` - Understand complex logic
-- \`@copilot suggest improvements\` - Get optimization suggestions
-
-Happy coding! 🚀`;
-
+            
+            Thank you for your contribution!
+            
+            💡 **AI Code Review:** You can ask GitHub Copilot to review this PR by commenting:
+            \`\`\`
+            @copilot review
+            \`\`\`
+            
+            **Useful commands:**
+            - \`@copilot review\` - Get a comprehensive code review
+            - \`@copilot explain this code\` - Understand complex logic
+            - \`@copilot suggest improvements\` - Get optimization suggestions
+            
+            Happy coding! 🚀`;
+            
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
