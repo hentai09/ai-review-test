@@ -1,3 +1,39 @@
+import ast
+import operator
+
+
+_SAFE_OPERATORS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+    ast.USub: operator.neg,
+}
+
+
+def safe_eval(expression):
+    """Safely evaluate a limited arithmetic expression."""
+    node = ast.parse(expression, mode="eval")
+
+    def _eval(n):
+        if isinstance(n, ast.Expression):
+            return _eval(n.body)
+        if isinstance(n, ast.Constant) and isinstance(n.value, (int, float, complex)):
+            return n.value
+        if isinstance(n, ast.UnaryOp) and type(n.op) in _SAFE_OPERATORS:
+            operand = _eval(n.operand)
+            return _SAFE_OPERATORS[type(n.op)](operand)
+        if isinstance(n, ast.BinOp) and type(n.op) in _SAFE_OPERATORS:
+            left = _eval(n.left)
+            right = _eval(n.right)
+            return _SAFE_OPERATORS[type(n.op)](left, right)
+        raise ValueError("Unsafe or unsupported expression")
+
+    return _eval(node)
+
+
 def calculate_total(items):
     # 计算商品总价
     total = 0
@@ -33,7 +69,7 @@ class DataProcessor:
 def process_user_input(user_data):
     """处理用户输入 - 这个函数有多个问题需要 Copilot 审查"""
     # 问题1: 使用 eval 是不安全的
-    result = eval(user_data['expression'])
+    result = safe_eval(user_data['expression'])
     
     # 问题2: 硬编码的密码（示例占位符，不是实际密码）
     password = "REPLACE_WITH_SECURE_PASSWORD"
