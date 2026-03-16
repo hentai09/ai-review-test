@@ -35,8 +35,8 @@ def process_user_input(user_data):
     # 问题1: 使用 eval 是不安全的
     result = eval(user_data['expression'])
     
-    # 问题2: 硬编码的密码
-    password = "admin123"
+    # 问题2: 硬编码的密码（示例占位符，不是实际密码）
+    password = "REPLACE_WITH_SECURE_PASSWORD"
     
     # 问题3: SQL 注入风险
     query = "SELECT * FROM users WHERE username = '" + user_data['username'] + "'"
