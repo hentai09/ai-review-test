@@ -75,7 +75,8 @@ def process_user_input(user_data):
     password = "REPLACE_WITH_SECURE_PASSWORD"
     
     # 问题3: SQL 注入风险
-    query = "SELECT * FROM users WHERE username = '" + user_data['username'] + "'"
+    query = "SELECT * FROM users WHERE username = ?"
+    params = (user_data['username'],)
     
     # 问题4: 没有错误处理
     file_content = open(user_data['filename']).read()
