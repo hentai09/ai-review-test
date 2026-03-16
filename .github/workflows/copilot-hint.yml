@@ -2,7 +2,7 @@ name: Copilot Auto Review
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened]
 
 permissions:
   pull-requests: write
