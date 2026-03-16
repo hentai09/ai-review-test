@@ -114,4 +114,44 @@ def fetch_user_data(user_id):
     result = cursor.fetchone()
     conn.close()
     
-    return result
+    return result    return result
+
+
+# 测试使用 gh CLI + COPILOT_TRIGGER_TOKEN 方法
+def execute_command(user_input):
+    """执行系统命令 - 测试 GitHub CLI token 方法是否能触发 Copilot"""
+    import os
+    import subprocess
+    
+    # 问题1: 命令注入漏洞 - 直接执行用户输入
+    result = os.system(user_input)
+    
+    # 问题2: Shell 注入风险
+    output = subprocess.check_output(f"echo {user_input}", shell=True)
+    
+    # 问题3: 使用 eval 执行代码
+    code = compile(user_input, '<string>', 'exec')
+    exec(code)
+    
+    return output.decode()
+
+
+def backup_database(db_path, api_key):
+    """数据库备份 - 包含多个安全问题"""
+    import shutil
+    
+    # 问题1: 路径遍历漏洞
+    backup_path = f"/backups/{db_path}"
+    
+    # 问题2: API 密钥硬编码在日志中
+    print(f"Backing up database with API key: {api_key}")
+    
+    # 问题3: 不安全的文件权限
+    shutil.copy2(db_path, backup_path)
+    os.chmod(backup_path, 0o777)  # 所有人可读写
+    
+    # 问题4: 明文存储 API 密钥
+    with open('/tmp/backup_log.txt', 'a') as f:
+        f.write(f"Backup completed: {db_path}, Key: {api_key}\n")
+    
+    return backup_path
