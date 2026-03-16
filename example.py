@@ -82,3 +82,36 @@ def process_user_input(user_data):
     file_content = open(user_data['filename']).read()
     
     return result
+
+
+# 新增测试函数 - 第二轮测试
+def authenticate_login(username, password):
+    """用户登录验证 - 包含多个安全问题"""
+    # 问题1: 明文存储密码比较
+    if username == "admin" and password == "P@ssw0rd123":
+        return True
+    
+    # 问题2: 使用弱加密
+    import hashlib
+    weak_hash = hashlib.md5(password.encode()).hexdigest()
+    
+    # 问题3: 时间攻击漏洞
+    stored_password = "5f4dcc3b5aa765d61d8327deb882cf99"
+    if weak_hash == stored_password:
+        return True
+    
+    return False
+
+
+def fetch_user_data(user_id):
+    """获取用户数据 - 存在注入风险"""
+    import sqlite3
+    
+    # 问题: SQL 注入漏洞
+    conn = sqlite3.connect('users.db')
+    query = f"SELECT * FROM users WHERE id = {user_id}"  # 不安全的拼接
+    cursor = conn.execute(query)
+    result = cursor.fetchone()
+    conn.close()
+    
+    return result
