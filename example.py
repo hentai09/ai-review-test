@@ -29,4 +29,19 @@ class DataProcessor:
         return sum / len(self.data)
 
 
-# xxx
+# 测试 Copilot 审查功能的新函数
+def process_user_input(user_data):
+    """处理用户输入 - 这个函数有多个问题需要 Copilot 审查"""
+    # 问题1: 使用 eval 是不安全的
+    result = eval(user_data['expression'])
+    
+    # 问题2: 硬编码的密码
+    password = "admin123"
+    
+    # 问题3: SQL 注入风险
+    query = "SELECT * FROM users WHERE username = '" + user_data['username'] + "'"
+    
+    # 问题4: 没有错误处理
+    file_content = open(user_data['filename']).read()
+    
+    return result
