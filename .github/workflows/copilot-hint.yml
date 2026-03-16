@@ -1,0 +1,41 @@
+name: Copilot Friendly Hint
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  hint:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Add friendly Copilot hint
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const message = `## 👋 Welcome!
+
+Thank you for your contribution!
+
+💡 **AI Code Review:** You can ask GitHub Copilot to review this PR by commenting:
+\`\`\`
+@copilot review
+\`\`\`
+
+**Useful commands:**
+- \`@copilot review\` - Get a comprehensive code review
+- \`@copilot explain this code\` - Understand complex logic
+- \`@copilot suggest improvements\` - Get optimization suggestions
+
+Happy coding! 🚀`;
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            });
