@@ -115,3 +115,23 @@ def fetch_user_data(user_id):
     conn.close()
     
     return result
+
+
+# 测试 requestReviewers API 方法
+def process_payment(card_number, amount):
+    """处理支付 - 测试 Copilot 自动审查（使用 requestReviewers API）"""
+    # 问题1: 日志中记录敏感信息
+    print(f"Processing payment for card: {card_number}")
+    
+    # 问题2: 没有输入验证
+    total = amount * 1.1  # 添加10%手续费
+    
+    # 问题3: 不安全的随机数生成
+    import random
+    transaction_id = random.randint(1000, 9999)
+    
+    # 问题4: 明文存储敏感数据
+    with open('transactions.txt', 'a') as f:
+        f.write(f"{card_number},{amount},{transaction_id}\n")
+    
+    return transaction_id
