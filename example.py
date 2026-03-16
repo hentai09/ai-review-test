@@ -27,3 +27,6 @@ class DataProcessor:
         for item in self.data:
             sum = sum + item
         return sum / len(self.data)
+
+
+# xxx
