@@ -1,0 +1,337 @@
+name: Copilot Auto Review
+
+on:
+  # PR 事件触发
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+      - master
+      - develop
+  
+  # Main 分支提交触发
+  push:
+    branches:
+      - main
+      - master
+  
+  # 手动触发（可选配置）
+  workflow_dispatch:
+    inputs:
+      review_scope:
+        description: 'Review scope'
+        required: false
+        default: 'comprehensive'
+        type: choice
+        options:
+          - comprehensive
+          - security-only
+          - performance-only
+          - code-quality
+      target_branch:
+        description: 'Target branch to review'
+        required: false
+        default: 'main'
+
+# 可配置的环境变量
+env:
+  # Copilot 审查的详细程度
+  REVIEW_DETAIL_LEVEL: 'detailed'  # 可选: basic, detailed, comprehensive
+  
+  # 是否启用安全扫描
+  ENABLE_SECURITY_CHECK: 'true'
+  
+  # 是否启用性能分析
+  ENABLE_PERFORMANCE_CHECK: 'true'
+  
+  # 是否启用代码质量检查
+  ENABLE_QUALITY_CHECK: 'true'
+  
+  # 是否启用最佳实践检查
+  ENABLE_BEST_PRACTICES: 'true'
+  
+  # 审查的文件类型过滤（留空表示所有类型）
+  FILE_EXTENSIONS: '*.py,*.js,*.ts,*.java,*.go,*.rb'
+  
+  # 审查触发的最小文件变更数（0 表示无限制）
+  MIN_CHANGED_FILES: '0'
+  
+  # 是否在 PR 中添加审查标签
+  ADD_REVIEW_LABEL: 'true'
+  
+  # 自定义审查消息模板
+  CUSTOM_REVIEW_MESSAGE: ''
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  statuses: write
+
+jobs:
+  # PR 代码审查任务
+  pr-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v41
+        with:
+          files: |
+            **/*.py
+            **/*.js
+            **/*.ts
+            **/*.java
+            **/*.go
+            **/*.rb
+            **/*.cpp
+            **/*.c
+            **/*.cs
+      
+      - name: Check if review is needed
+        id: check-review
+        run: |
+          CHANGED_COUNT=${{ steps.changed-files.outputs.all_changed_files_count }}
+          MIN_FILES=${{ env.MIN_CHANGED_FILES }}
+          
+          echo "Changed files count: $CHANGED_COUNT"
+          echo "Minimum required: $MIN_FILES"
+          
+          if [ "$CHANGED_COUNT" -ge "$MIN_FILES" ]; then
+            echo "needs_review=true" >> $GITHUB_OUTPUT
+            echo "Review is needed"
+          else
+            echo "needs_review=false" >> $GITHUB_OUTPUT
+            echo "Skipping review - not enough changed files"
+          fi
+      
+      - name: Build review message
+        if: steps.check-review.outputs.needs_review == 'true'
+        id: build-message
+        run: |
+          # 构建审查消息
+          MESSAGE="@copilot Please review this PR"
+          
+          # 添加审查范围
+          if [ "${{ env.REVIEW_DETAIL_LEVEL }}" = "comprehensive" ]; then
+            MESSAGE+="\n\n**Comprehensive Review Requested**"
+          fi
+          
+          MESSAGE+="\n\n**Review Focus Areas:**"
+          
+          # 根据配置添加审查项
+          if [ "${{ env.ENABLE_SECURITY_CHECK }}" = "true" ]; then
+            MESSAGE+="\n- 🔒 Security vulnerabilities and potential exploits"
+          fi
+          
+          if [ "${{ env.ENABLE_PERFORMANCE_CHECK }}" = "true" ]; then
+            MESSAGE+="\n- ⚡ Performance issues and optimization opportunities"
+          fi
+          
+          if [ "${{ env.ENABLE_QUALITY_CHECK }}" = "true" ]; then
+            MESSAGE+="\n- ✨ Code quality and maintainability"
+          fi
+          
+          if [ "${{ env.ENABLE_BEST_PRACTICES }}" = "true" ]; then
+            MESSAGE+="\n- 📋 Best practices and design patterns"
+          fi
+          
+          MESSAGE+="\n\n**Changed Files:** ${{ steps.changed-files.outputs.all_changed_files_count }}"
+          
+          # 添加自定义消息
+          if [ -n "${{ env.CUSTOM_REVIEW_MESSAGE }}" ]; then
+            MESSAGE+="\n\n${{ env.CUSTOM_REVIEW_MESSAGE }}"
+          fi
+          
+          # 保存消息（处理多行）
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$MESSAGE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Add review label
+        if: steps.check-review.outputs.needs_review == 'true' && env.ADD_REVIEW_LABEL == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            try {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                labels: ['copilot-review']
+              });
+            } catch (error) {
+              console.log('Label may not exist, skipping...');
+            }
+      
+      - name: Request Copilot Review
+        if: steps.check-review.outputs.needs_review == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const message = `${{ steps.build-message.outputs.message }}`;
+            
+            // 添加 Copilot 审查请求评论
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: message
+            });
+            
+            console.log(`✅ Copilot review requested for PR #${prNumber}`);
+            
+            // 添加审查状态
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.payload.pull_request.head.sha,
+              state: 'success',
+              context: 'Copilot Auto Review',
+              description: 'Review request sent to Copilot'
+            });
+  
+  # Main 分支提交后的代码审查
+  main-branch-review:
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      
+      - name: Get commit info
+        id: commit-info
+        run: |
+          COMMIT_SHA="${{ github.sha }}"
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          AUTHOR="${{ github.actor }}"
+          
+          echo "sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMIT_MSG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "author=$AUTHOR" >> $GITHUB_OUTPUT
+      
+      - name: Get changed files in commit
+        id: changed-files
+        run: |
+          # 获取此次提交的变更文件
+          git diff --name-only HEAD^..HEAD > changed_files.txt
+          
+          CHANGED_COUNT=$(wc -l < changed_files.txt)
+          echo "Changed files: $CHANGED_COUNT"
+          cat changed_files.txt
+          
+          echo "count=$CHANGED_COUNT" >> $GITHUB_OUTPUT
+      
+      - name: Create review issue for main branch commit
+        if: env.ENABLE_QUALITY_CHECK == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const sha = '${{ steps.commit-info.outputs.sha }}';
+            const shortSha = sha.substring(0, 7);
+            const commitMsg = `${{ steps.commit-info.outputs.message }}`;
+            const author = '${{ steps.commit-info.outputs.author }}';
+            const changedCount = '${{ steps.changed-files.outputs.count }}';
+            
+            // 创建一个 issue 用于 main 分支的代码审查
+            const issueBody = `## 🔍 Main Branch Commit Review Request
+            
+            **Commit:** \`${shortSha}\`
+            **Author:** @${author}
+            **Changed Files:** ${changedCount}
+            
+            **Commit Message:**
+            \`\`\`
+            ${commitMsg}
+            \`\`\`
+            
+            ---
+            
+            @copilot Please review this commit to the main branch:
+            - Check for any issues that might have been missed
+            - Identify potential bugs or security concerns
+            - Suggest improvements for future commits
+            - Verify code quality standards are met
+            
+            **Link:** ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${sha}
+            `;
+            
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🤖 Copilot Review: Commit ${shortSha} to main`,
+              body: issueBody,
+              labels: ['copilot-review', 'main-branch', 'automated']
+            });
+            
+            console.log(`✅ Review issue created: #${issue.data.number}`);
+            console.log(`Issue URL: ${issue.data.html_url}`);
+  
+  # 手动触发的审查任务
+  manual-review:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Manual review request
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const scope = '${{ github.event.inputs.review_scope }}';
+            const branch = '${{ github.event.inputs.target_branch }}';
+            
+            let reviewFocus = '';
+            switch(scope) {
+              case 'security-only':
+                reviewFocus = '🔒 Security vulnerabilities and exploits';
+                break;
+              case 'performance-only':
+                reviewFocus = '⚡ Performance issues and optimizations';
+                break;
+              case 'code-quality':
+                reviewFocus = '✨ Code quality and maintainability';
+                break;
+              default:
+                reviewFocus = '🔍 Comprehensive code review';
+            }
+            
+            const issueBody = `## Manual Copilot Review Request
+            
+            **Branch:** \`${branch}\`
+            **Review Scope:** ${reviewFocus}
+            **Requested by:** @${context.actor}
+            
+            ---
+            
+            @copilot Please perform a ${scope} review of the \`${branch}\` branch.
+            `;
+            
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `🤖 Manual Review Request: ${scope}`,
+              body: issueBody,
+              labels: ['copilot-review', 'manual-trigger']
+            });
+            
+            console.log(`✅ Manual review issue created: #${issue.data.number}`);
